@@ -43,15 +43,38 @@ fn main() {
 fn decide(conn: Connection, decide_opt: DecideOpt) -> anyhow::Result<()> {
   Ok(())
 }
-fn init(conn: Connection, init_opt: InitOpt) -> anyhow::Result<()> {
-  conn.execute(
-    "CREATE TABLE person (
-                  id              INTEGER PRIMARY KEY,
-                  name            TEXT NOT NULL,
-                  data            BLOB
-                  )",
+fn init(mut conn: Connection, init_opt: InitOpt) -> anyhow::Result<()> {
+  // TODO: do both of these atomically
+  let tx = conn.transaction()?;
+
+  // tx.execute("PRAGMA foreign_keys = ON", params![])?;
+  tx.execute(
+    "
+    CREATE TABLE decisions (
+      id              INTEGER PRIMARY KEY,
+      title           TEXT NOT NULL,
+      description     TEXT NOT NULL,
+      reason          TEXT NOT NULL,
+      prediction      TEXT NOT NULL
+    )
+  ",
     params![],
   )?;
+  tx.execute(
+    "
+  CREATE TABLE reviews (
+    id                       INTEGER PRIMARY KEY,
+    decision_id              INTEGER NOT NULL,
+    reason_reflection        TEXT NOT NULL,
+    prediction_reflection    TEXT NOT NULL,
+    additional_notes         TEXT NOT NULL,
+    FOREIGN KEY(decision_id) REFERENCES decisions(id)
+  )
+  ",
+    params![],
+  )?;
+
+  tx.commit()?;
   Ok(())
 }
 fn list(conn: Connection, list_opt: ListOpt) -> anyhow::Result<()> {
