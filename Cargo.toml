@@ -8,8 +8,9 @@ edition = "2018"
 
 [dependencies]
 anyhow = "*"
+chrono = "*"
 log = "*"
 pretty_env_logger = "*"
-rusqlite = { version = "*", features = ["bundled-full"] }
+rusqlite = { version = "*", features = ["chrono"] }
 structopt = "*"
 
