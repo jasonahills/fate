@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, Result};
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct DecisionCreate {
   pub title: String,
   pub description: String,
@@ -8,11 +10,24 @@ pub struct DecisionCreate {
   pub review_at: DateTime<Utc>,
 }
 
-// TODO: actual type
-pub type Decision = ();
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Decision {
+  pub id: u32,
+  pub title: String,
+  pub description: String,
+  pub reason: String,
+  pub prediction: String,
+  pub review_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct DecisionUpdate {
+  pub id: u32,
+  pub review_at: DateTime<Utc>,
+}
 
 impl DecisionCreate {
-  pub fn insert(&self, conn: &mut Connection) -> Result<Decision> {
+  pub fn insert(&self, conn: &mut Connection) -> Result<()> {
     conn.execute(
       "
   INSERT INTO 
@@ -72,4 +87,26 @@ pub fn init(conn: &mut Connection) -> Result<()> {
   )?;
   tx.commit()?;
   Ok(())
+}
+
+pub fn get_decisions_needing_review(conn: &Connection) -> Result<Vec<Decision>> {
+  let mut stmt = conn.prepare(
+    "
+ SELECT id, title, description, reason, prediction, review_at 
+ FROM decisions 
+ WHERE review_at < \"now\"
+",
+  )?;
+  let rows = stmt.query_map(rusqlite::NO_PARAMS, |row| {
+    Ok(Decision {
+      id: row.get(0)?,
+      title: row.get(1)?,
+      description: row.get(2)?,
+      reason: row.get(3)?,
+      prediction: row.get(4)?,
+      review_at: row.get(5)?,
+    })
+  })?;
+
+  rows.collect()
 }

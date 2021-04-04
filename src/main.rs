@@ -52,6 +52,20 @@ fn list(_conn: Connection, _list_opt: ListOpt) -> anyhow::Result<()> {
 fn read(_conn: Connection, _read_opt: ReadOpt) -> anyhow::Result<()> {
   unimplemented!()
 }
-fn review(_conn: Connection, _review_opt: ReviewOpt) -> anyhow::Result<()> {
-  unimplemented!()
+fn review(conn: Connection, review_opt: ReviewOpt) -> anyhow::Result<()> {
+  let ReviewOpt { check } = review_opt;
+  let needs_review = queries::get_decisions_needing_review(&conn)?;
+  if check {
+    let num_need_review = needs_review.len();
+    if num_need_review == 0 {
+      println!("No reviews required");
+      std::process::exit(0);
+    } else {
+      println!("{} reviews required", num_need_review);
+      std::process::exit(1);
+    }
+  }
+  println!("needs review {:?}", needs_review);
+  // TODO: actually perform the review.
+  Ok(())
 }
