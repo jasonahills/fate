@@ -14,3 +14,5 @@ pretty_env_logger = "*"
 rusqlite = { version = "*", features = ["chrono"] }
 structopt = "*"
 
+[dev-dependencies]
+tempfile = "*"

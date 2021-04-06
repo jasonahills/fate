@@ -1,12 +1,12 @@
+use crate::db::{Decision, DecisionCreate, Review, ReviewCreate};
 use crate::opt::{Command, DecideOpt, InitOpt, ListOpt, Opt, ReadOpt, ReviewOpt};
-use crate::queries::{Decision, DecisionCreate, ReviewCreate};
 use log::debug;
 use rusqlite::Connection;
 use structopt::StructOpt;
 
+mod db;
 mod opt;
 mod prompts;
-mod queries;
 
 fn main() {
   pretty_env_logger::init();
@@ -48,7 +48,7 @@ fn decide(mut conn: Connection, _decide_opt: DecideOpt) -> anyhow::Result<()> {
 }
 
 fn init(mut conn: Connection, _init_opt: InitOpt) -> anyhow::Result<()> {
-  queries::init(&mut conn)?;
+  db::init(&mut conn)?;
   Ok(())
 }
 fn list(mut conn: Connection, _list_opt: ListOpt) -> anyhow::Result<()> {
@@ -65,7 +65,7 @@ fn list(mut conn: Connection, _list_opt: ListOpt) -> anyhow::Result<()> {
 }
 fn read(mut conn: Connection, read_opt: ReadOpt) -> anyhow::Result<()> {
   let decision = Decision::get(&mut conn, read_opt.decision_id)?;
-  let reviews = queries::get_reviews_for_decision(&mut conn, read_opt.decision_id)?;
+  let reviews = Review::get_by_decision(&mut conn, read_opt.decision_id)?;
 
   println!("{}", decision);
   for review in reviews {
@@ -75,7 +75,7 @@ fn read(mut conn: Connection, read_opt: ReadOpt) -> anyhow::Result<()> {
 }
 fn review(mut conn: Connection, review_opt: ReviewOpt) -> anyhow::Result<()> {
   let ReviewOpt { check } = review_opt;
-  let needs_review = queries::get_decisions_needing_review(&conn)?;
+  let needs_review = Decision::get_needing_review(&conn)?;
 
   let decision = if let Some(decision) = needs_review.first() {
     decision
@@ -96,7 +96,7 @@ fn review(mut conn: Connection, review_opt: ReviewOpt) -> anyhow::Result<()> {
     prompts::prompt_string("Reflect on the reason you gave for the decision.")?;
   let prediction_reflection = prompts::prompt_string("Reflect on the prediction you made.")?;
 
-  let reviews = queries::get_reviews_for_decision(&mut conn, decision.id)?;
+  let reviews = Review::get_by_decision(&mut conn, decision.id)?;
 
   for review in reviews {
     println!("{}", review);

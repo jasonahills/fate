@@ -26,7 +26,7 @@ pub struct ListOpt {}
 #[derive(Clone, Debug, StructOpt)]
 pub struct ReadOpt {
   #[structopt(name = "DECISION_ID")]
-  pub decision_id: crate::queries::DecisionId,
+  pub decision_id: crate::db::DecisionId,
 }
 
 #[derive(Clone, Debug, StructOpt)]
