@@ -1,26 +1,11 @@
-// fate [--db-file]
-// fate decide
-// fate decisions create
-// fate decisions list
-// fate review [--check]
-// fate read
-
-// As a user, I want to be able to make a decision, explain my reasons for it and how I made the decision, make predictions about how it will go, and set a time to revisit the decision
-
-// As a user, I want to be able to review a decision (before and after reading what I have read in previous reviews);  The flow is read original decision (and why, etc.), then talk about what has actually happened (folllow-through, results), then read previous reviews, then give any additional feedback regarding them.
-
-// TODO
-// [ ] write review to db
-// [ ] use vi for long-form answers
-
-use crate::decide::decide;
-use crate::opt::{Command, InitOpt, ListOpt, Opt, ReadOpt, ReviewOpt};
+use crate::opt::{Command, DecideOpt, InitOpt, ListOpt, Opt, ReadOpt, ReviewOpt};
+use crate::queries::{Decision, DecisionCreate, ReviewCreate};
 use log::debug;
 use rusqlite::Connection;
 use structopt::StructOpt;
 
-mod decide;
 mod opt;
+mod prompts;
 mod queries;
 
 fn main() {
@@ -38,34 +23,101 @@ fn main() {
     Command::Review(o) => review(conn, o),
   }
   .unwrap();
-  println!("Done.")
+}
+
+fn decide(mut conn: Connection, _decide_opt: DecideOpt) -> anyhow::Result<()> {
+  // TODO: use vim or the like for longer-form decisions.
+  let title = prompts::prompt_string("Provide a title for your decision:")?;
+  let description = prompts::prompt_string("What is your decision, in detail?")?;
+  let reason = prompts::prompt_string("Why are you making this decision?")?;
+  let prediction =
+    prompts::prompt_string("What do you think will happen because of this decision?")?;
+  let review_at = prompts::review_at()?;
+
+  let d = DecisionCreate {
+    title,
+    description,
+    reason,
+    prediction,
+    review_at,
+  };
+
+  println!("Inserting decision");
+  d.insert(&mut conn)?;
+  Ok(())
 }
 
 fn init(mut conn: Connection, _init_opt: InitOpt) -> anyhow::Result<()> {
-  // TODO: do both of these atomically
   queries::init(&mut conn)?;
   Ok(())
 }
-fn list(_conn: Connection, _list_opt: ListOpt) -> anyhow::Result<()> {
-  unimplemented!()
+fn list(mut conn: Connection, _list_opt: ListOpt) -> anyhow::Result<()> {
+  let decisions = Decision::all(&mut conn)?;
+  for decision in decisions {
+    println!(
+      "{}\t{}\t{}",
+      decision.created_at.date(),
+      decision.id,
+      decision.title
+    )
+  }
+  Ok(())
 }
-fn read(_conn: Connection, _read_opt: ReadOpt) -> anyhow::Result<()> {
-  unimplemented!()
+fn read(mut conn: Connection, read_opt: ReadOpt) -> anyhow::Result<()> {
+  let decision = Decision::get(&mut conn, read_opt.decision_id)?;
+  let reviews = queries::get_reviews_for_decision(&mut conn, read_opt.decision_id)?;
+
+  println!("{}", decision);
+  for review in reviews {
+    println!("{}", review);
+  }
+  Ok(())
 }
-fn review(conn: Connection, review_opt: ReviewOpt) -> anyhow::Result<()> {
+fn review(mut conn: Connection, review_opt: ReviewOpt) -> anyhow::Result<()> {
   let ReviewOpt { check } = review_opt;
   let needs_review = queries::get_decisions_needing_review(&conn)?;
+
+  let decision = if let Some(decision) = needs_review.first() {
+    decision
+  } else {
+    println!("No reviews required");
+    std::process::exit(0);
+  };
+
   if check {
-    let num_need_review = needs_review.len();
-    if num_need_review == 0 {
-      println!("No reviews required");
-      std::process::exit(0);
-    } else {
-      println!("{} reviews required", num_need_review);
-      std::process::exit(1);
-    }
+    println!("{} reviews required", needs_review.len());
+    std::process::exit(1);
   }
-  println!("needs review {:?}", needs_review);
-  // TODO: actually perform the review.
+
+  println!("{}", decision);
+
+  let followthrough = prompts::prompt_string("Describe the followthrough on this decision.")?;
+  let reason_reflection =
+    prompts::prompt_string("Reflect on the reason you gave for the decision.")?;
+  let prediction_reflection = prompts::prompt_string("Reflect on the prediction you made.")?;
+
+  let reviews = queries::get_reviews_for_decision(&mut conn, decision.id)?;
+
+  for review in reviews {
+    println!("{}", review);
+  }
+
+  let additional_notes = prompts::prompt_string(
+    "What additional notes would you like to make about this decision and your previous reviews?",
+  )?;
+
+  let review_again_at = prompts::review_at()?;
+
+  let review_create = ReviewCreate {
+    decision_id: decision.id,
+    reason_reflection,
+    prediction_reflection,
+    followthrough,
+    additional_notes,
+    review_again_at,
+  };
+
+  review_create.insert(&mut conn)?;
+
   Ok(())
 }

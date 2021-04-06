@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use structopt::StructOpt;
+#[structopt(name = "fate", about = "A tool for tracking decisions and results")]
 #[derive(Clone, StructOpt, Debug)]
 pub struct Opt {
   #[structopt(subcommand)]
@@ -23,7 +24,10 @@ pub struct InitOpt {}
 #[derive(Clone, Debug, StructOpt)]
 pub struct ListOpt {}
 #[derive(Clone, Debug, StructOpt)]
-pub struct ReadOpt {}
+pub struct ReadOpt {
+  #[structopt(name = "DECISION_ID")]
+  pub decision_id: crate::queries::DecisionId,
+}
 
 #[derive(Clone, Debug, StructOpt)]
 pub struct ReviewOpt {
