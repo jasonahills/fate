@@ -1,6 +1,6 @@
 # Fate
 
-Fate is a small command line utility for following up on decisions.  It stores decisions and reviews of decisions in an SQLite database.
+Fate is a small command line utility for following up on decisions.  It interactively helps you document and review your decisions, storing the results in an SQLite database.
 
 ```shell
 fate --db_file /path/to/fate.db init            # initialize database
